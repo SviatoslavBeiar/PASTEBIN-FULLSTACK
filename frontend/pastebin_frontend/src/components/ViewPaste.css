@@ -1,0 +1,134 @@
+.view-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+
+.title {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+}
+
+.content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 20px;
+    font-family: 'Courier New', Courier, monospace;
+    white-space: pre-wrap; /* сохраняет форматирование пробелов и переносов строк */
+    color: #555;
+}
+
+.details {
+    text-align: left;
+    width: 100%;
+    max-width: 800px;
+    font-size: 0.9rem;
+    color: #777;
+}
+
+.details p {
+    margin: 5px 0;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+.loading {
+    font-size: 1.2rem;
+    color: #888;
+}
+.view-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+}
+
+.title {
+    font-size: 24px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.content {
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.details {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.comment-form {
+    margin-top: 20px;
+}
+
+.comment-form h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.comment-form input,
+.comment-form textarea {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.comment-form input {
+    height: 30px;
+}
+
+.comment-form textarea {
+    height: 60px;
+}
+
+.comment-form button {
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+}
+
+.comment-form button:hover {
+    background-color: #0056b3;
+}
+
+.comments-section {
+    margin-top: 40px;
+}
+
+.comments-section h2 {
+    font-size: 20px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd; /* Линия между пастой и комментариями */
+    padding-bottom: 5px;
+}
+
+.comment {
+    margin-bottom: 15px;
+}
+
+.comment p {
+    margin: 5px 0;
+}
