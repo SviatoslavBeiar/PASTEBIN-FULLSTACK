@@ -7,14 +7,18 @@ import com.example.pastebin.model.PasteResponse;
 import com.example.pastebin.model.SQL.Paste;
 import com.example.pastebin.model.noSQL.PasteContent;
 import com.example.pastebin.service.PasteService;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/paste")
+@Slf4j
 public class PasteController {
 
     private final PasteService pasteService;
@@ -26,7 +30,9 @@ public class PasteController {
     @PostMapping("/{uniqueUrl}/comments")
     public ResponseEntity<PasteContent.Comment> addComment(
             @PathVariable String uniqueUrl,
-            @RequestBody CreateCommentRequest commentRequest) {
+            @Valid @RequestBody CreateCommentRequest commentRequest) { // Добавляем валидацию
+
+        log.info("Adding comment for paste: {}", uniqueUrl);
 
         PasteContent.Comment comment = pasteService.addComment(
                 uniqueUrl,
@@ -38,17 +44,21 @@ public class PasteController {
 
     @GetMapping("/{uniqueUrl}/comments")
     public ResponseEntity<List<PasteContent.Comment>> getComments(@PathVariable String uniqueUrl) {
+        log.info("Fetching comments for paste: {}", uniqueUrl);
+
         List<PasteContent.Comment> comments = pasteService.getCommentsByPaste(uniqueUrl);
         return ResponseEntity.ok(comments);
     }
 
     @PostMapping
-    public ResponseEntity<String> createPaste(@RequestBody CreatePasteRequest pasteRequest) {
+    public ResponseEntity<String> createPaste(@Valid @RequestBody CreatePasteRequest pasteRequest) { // Добавляем валидацию
+        log.info("Creating new paste by user: {}", pasteRequest.getUsername());
+
         Paste paste = pasteService.createPaste(
                 pasteRequest.getContent(),
                 pasteRequest.getTitle(),
                 pasteRequest.getUsername(),
-                pasteRequest.getEmail(),  // Добавляем email
+                pasteRequest.getEmail(),
                 pasteRequest.getExpirationTime()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(paste.getUniqueUrl());
@@ -56,7 +66,8 @@ public class PasteController {
 
     @GetMapping("/{uniqueUrl}")
     public ResponseEntity<PasteResponse> getPaste(@PathVariable String uniqueUrl) {
-        System.out.println("Getting paste: " + uniqueUrl);
+        log.info("Getting paste: {}", uniqueUrl);
+
         pasteService.incrementViewCount(uniqueUrl);
 
         Paste paste = pasteService.getPasteMetadata(uniqueUrl);
