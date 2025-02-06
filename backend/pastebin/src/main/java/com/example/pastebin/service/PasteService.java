@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -29,21 +30,27 @@ public class PasteService {
     private static final long DEFAULT_EXPIRATION_MINUTES = 2;
 
     public PasteContent.Comment addComment(String uniqueUrl, String username, String content) {
+
         PasteContent pasteContent = findPasteContentById(uniqueUrl);
 
-        PasteContent.Comment comment = new PasteContent.Comment();
-        comment.setUsername(username);
-        comment.setContent(content);
-        comment.setTimestamp(LocalDateTime.now());
+        PasteContent.Comment comment = PasteContent.Comment.builder()
+                .username(username)
+                .content(content)
+                .timestamp(LocalDateTime.now())
+                .build();
 
-        List<PasteContent.Comment> comments = Optional.ofNullable(pasteContent.getComments())
-                .orElseGet(ArrayList::new);
+        List<PasteContent.Comment> comments = pasteContent.getComments();
+        if (comments == null) {
+            comments = new ArrayList<>();
+            pasteContent.setComments(comments);
+        }
+
         comments.add(comment);
-        pasteContent.setComments(comments);
-
         pasteContentRepository.save(pasteContent);
+
         return comment;
     }
+
 
     public List<PasteContent.Comment> getCommentsByPaste(String uniqueUrl) {
         PasteContent pasteContent = findPasteContentById(uniqueUrl);
@@ -57,30 +64,36 @@ public class PasteService {
     }
 
     public Paste createPaste(String content, String title, String username, String email, Long expirationTime) {
-        Paste paste = new Paste();
-        paste.setTitle(title);
-        paste.setUsername(username);
-        paste.setEmail(email);
-        paste.setUniqueUrl(UUID.randomUUID().toString());
 
         long minutesToExpire = Optional.ofNullable(expirationTime).orElse(DEFAULT_EXPIRATION_MINUTES);
-        paste.setExpirationTime(LocalDateTime.now().plusMinutes(minutesToExpire));
+
+        Paste paste = Paste.builder()
+                .title(title)
+                .username(username)
+                .email(email)
+                .uniqueUrl(UUID.randomUUID().toString())
+                .expirationTime(LocalDateTime.now().plusMinutes(minutesToExpire))
+                .viewCount(0)
+                .notified(false)
+                .build();
 
         Paste savedPaste = pasteRepository.save(paste);
 
-        PasteContent pasteContent = new PasteContent();
-        pasteContent.setId(savedPaste.getUniqueUrl());
-        pasteContent.setContent(content);
-        pasteContent.setComments(new ArrayList<>());
+        PasteContent pasteContent = PasteContent.builder()
+                .id(savedPaste.getUniqueUrl())
+                .content(content)
+                .comments(new ArrayList<>())
+                .build();
+
         pasteContentRepository.save(pasteContent);
 
         return savedPaste;
     }
 
+
     public Paste getPasteMetadata(String uniqueUrl) {
         return findPasteByUniqueUrl(uniqueUrl);
     }
-
     public PasteContent getPasteContent(String uniqueUrl) {
         return findPasteContentById(uniqueUrl);
     }
@@ -88,23 +101,19 @@ public class PasteService {
     @Scheduled(fixedRate = 30000)
     public void processPastes() {
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime notifyThreshold = now.plusMinutes(30);
 
-        List<Paste> pastesToNotify = pasteRepository.findAllByExpirationTimeBeforeAndNotifiedFalse(now.plusMinutes(30));
+        List<Paste> pastesToNotify = pasteRepository.findAllByExpirationTimeBeforeAndNotifiedFalse(notifyThreshold);
         List<Paste> pastesToDelete = pasteRepository.findAllByExpirationTimeBefore(now);
 
-        notifyUsersAboutExpiration(pastesToNotify, now);
-        deleteExpiredPastes(pastesToDelete);
-    }
-
-    private void notifyUsersAboutExpiration(List<Paste> pastesToNotify, LocalDateTime now) {
-        for (Paste paste : pastesToNotify) {
+        pastesToNotify.forEach(paste -> {
             Duration totalTime = Duration.between(paste.getCreationTime(), paste.getExpirationTime());
             Duration remainingTime = Duration.between(now, paste.getExpirationTime());
 
             if (remainingTime.toMinutes() <= totalTime.toMinutes() * 0.5) {
                 String subject = "Your paste is about to expire";
-                String text = String.format("Dear %s,\n\nYour paste with title '%s' is about to expire soon.", paste.getUsername(), paste.getTitle());
-
+                String text = String.format("Dear %s,\n\nYour paste with title '%s' is about to expire soon.",
+                        paste.getUsername(), paste.getTitle());
                 try {
                     emailService.sendSimpleMessage(paste.getEmail(), subject, text);
                     paste.setNotified(true);
@@ -112,28 +121,25 @@ public class PasteService {
                     log.error("Failed to send email to {}", paste.getEmail(), e);
                 }
             }
-        }
+        });
         pasteRepository.saveAll(pastesToNotify);
-    }
 
-    private void deleteExpiredPastes(List<Paste> pastesToDelete) {
-        for (Paste paste : pastesToDelete) {
+        pastesToDelete.forEach(paste -> {
             pasteRepository.delete(paste);
             pasteContentRepository.deleteById(paste.getUniqueUrl());
-        }
+        });
     }
+
 
     private Paste findPasteByUniqueUrl(String uniqueUrl) {
         return pasteRepository.findByUniqueUrl(uniqueUrl)
                 .orElseThrow(() -> new PasteNotFoundException("Paste not found for URL: " + uniqueUrl));
     }
-
     private PasteContent findPasteContentById(String uniqueUrl) {
         return pasteContentRepository.findById(uniqueUrl)
                 .orElseThrow(() -> new PasteNotFoundException("Paste content not found for URL: " + uniqueUrl));
     }
 }
-
 
 
 

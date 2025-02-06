@@ -1,7 +1,6 @@
 package com.example.pastebin;
 
-import com.example.pastebin.exeption.PasteNotFoundException;
-import com.example.pastebin.model.CreatePasteRequest;
+import com.example.pastebin.DTO.CreatePasteRequestDTO;
 import com.example.pastebin.model.noSQL.PasteContent;
 import com.example.pastebin.model.SQL.Paste;
 import com.example.pastebin.repo.PasteContentRepository;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import java.time.LocalDateTime;
@@ -50,9 +48,12 @@ public class PasteServiceTest {
         pasteContent.setId(uniqueUrl);
         pasteContent.setComments(new ArrayList<>());
 
-        PasteContent.Comment newComment = new PasteContent.Comment();
-        newComment.setUsername("user");
-        newComment.setContent("This is a comment");
+        // Create expected comment using builder pattern.
+        PasteContent.Comment expectedComment = PasteContent.Comment.builder()
+                .username("user")
+                .content("This is a comment")
+                .timestamp(LocalDateTime.now())
+                .build();
 
         when(pasteContentRepository.findById(uniqueUrl)).thenReturn(Optional.of(pasteContent));
 
@@ -70,7 +71,7 @@ public class PasteServiceTest {
         PasteContent pasteContent = new PasteContent();
         pasteContent.setId(uniqueUrl);
         List<PasteContent.Comment> comments = new ArrayList<>();
-        comments.add(new PasteContent.Comment());
+        comments.add(PasteContent.Comment.builder().build());
         pasteContent.setComments(comments);
 
         when(pasteContentRepository.findById(uniqueUrl)).thenReturn(Optional.of(pasteContent));
@@ -101,7 +102,7 @@ public class PasteServiceTest {
     @Test
     void testCreatePaste() {
         String uniqueUrl = UUID.randomUUID().toString();
-        CreatePasteRequest pasteRequest = new CreatePasteRequest();
+        CreatePasteRequestDTO pasteRequest = new CreatePasteRequestDTO();
         pasteRequest.setContent("Content");
         pasteRequest.setTitle("Title");
         pasteRequest.setUsername("user");

@@ -1,4 +1,4 @@
-package com.example.pastebin.model;
+package com.example.pastebin.DTO;
 
 import lombok.*;
 
@@ -7,7 +7,7 @@ import lombok.*;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateCommentRequest {
+public class CreateCommentRequestDTO {
     private String username;
     private String content;
 }

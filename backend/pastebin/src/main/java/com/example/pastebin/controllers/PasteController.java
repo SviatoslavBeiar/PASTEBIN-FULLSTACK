@@ -1,9 +1,9 @@
 package com.example.pastebin.controllers;
 
 import com.example.pastebin.exeption.PasteNotFoundException;
-import com.example.pastebin.model.CreateCommentRequest;
-import com.example.pastebin.model.CreatePasteRequest;
-import com.example.pastebin.model.PasteResponse;
+import com.example.pastebin.DTO.CreateCommentRequestDTO;
+import com.example.pastebin.DTO.CreatePasteRequestDTO;
+import com.example.pastebin.DTO.PasteResponseDTO;
 import com.example.pastebin.model.SQL.Paste;
 import com.example.pastebin.model.noSQL.PasteContent;
 import com.example.pastebin.service.PasteService;
@@ -30,7 +30,7 @@ public class PasteController {
     @PostMapping("/{uniqueUrl}/comments")
     public ResponseEntity<PasteContent.Comment> addComment(
             @PathVariable String uniqueUrl,
-            @Valid @RequestBody CreateCommentRequest commentRequest) { // Добавляем валидацию
+            @Valid @RequestBody CreateCommentRequestDTO commentRequest) { //
 
         log.info("Adding comment for paste: {}", uniqueUrl);
 
@@ -51,7 +51,7 @@ public class PasteController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createPaste(@Valid @RequestBody CreatePasteRequest pasteRequest) { // Добавляем валидацию
+    public ResponseEntity<String> createPaste(@Valid @RequestBody CreatePasteRequestDTO pasteRequest) {
         log.info("Creating new paste by user: {}", pasteRequest.getUsername());
 
         Paste paste = pasteService.createPaste(
@@ -65,7 +65,7 @@ public class PasteController {
     }
 
     @GetMapping("/{uniqueUrl}")
-    public ResponseEntity<PasteResponse> getPaste(@PathVariable String uniqueUrl) {
+    public ResponseEntity<PasteResponseDTO> getPaste(@PathVariable String uniqueUrl) {
         log.info("Getting paste: {}", uniqueUrl);
 
         pasteService.incrementViewCount(uniqueUrl);
@@ -74,7 +74,7 @@ public class PasteController {
         PasteContent pasteContent = pasteService.getPasteContent(uniqueUrl);
 
         if (paste != null && pasteContent != null) {
-            PasteResponse response = new PasteResponse(
+            PasteResponseDTO response = new PasteResponseDTO(
                     pasteContent.getContent(),
                     paste.getTitle(),
                     paste.getUsername(),

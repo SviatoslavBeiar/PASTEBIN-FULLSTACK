@@ -1,9 +1,9 @@
 package com.example.pastebin;
 
 import com.example.pastebin.controllers.PasteController;
-import com.example.pastebin.model.CreateCommentRequest;
-import com.example.pastebin.model.CreatePasteRequest;
-import com.example.pastebin.model.PasteResponse;
+import com.example.pastebin.DTO.CreateCommentRequestDTO;
+import com.example.pastebin.DTO.CreatePasteRequestDTO;
+import com.example.pastebin.DTO.PasteResponseDTO;
 import com.example.pastebin.model.SQL.Paste;
 import com.example.pastebin.model.noSQL.PasteContent;
 import com.example.pastebin.service.PasteService;
@@ -38,11 +38,14 @@ public class PasteControllerTest {
     @Test
     void testAddComment() {
         String uniqueUrl = "test-url";
-        CreateCommentRequest commentRequest = new CreateCommentRequest("user", "This is a comment");
-        PasteContent.Comment comment = new PasteContent.Comment();
-        comment.setUsername("user");
-        comment.setContent("This is a comment");
-        comment.setTimestamp(LocalDateTime.now());
+        CreateCommentRequestDTO commentRequest = new CreateCommentRequestDTO("user", "This is a comment");
+
+        // Use builder to create expected comment instance.
+        PasteContent.Comment comment = PasteContent.Comment.builder()
+                .username("user")
+                .content("This is a comment")
+                .timestamp(LocalDateTime.now())
+                .build();
 
         when(pasteService.addComment(uniqueUrl, "user", "This is a comment")).thenReturn(comment);
 
@@ -58,7 +61,7 @@ public class PasteControllerTest {
     void testGetComments() {
         String uniqueUrl = "test-url";
         List<PasteContent.Comment> comments = new ArrayList<>();
-        comments.add(new PasteContent.Comment());
+        comments.add(PasteContent.Comment.builder().build());
 
         when(pasteService.getCommentsByPaste(uniqueUrl)).thenReturn(comments);
 
@@ -71,7 +74,7 @@ public class PasteControllerTest {
 
     @Test
     void testCreatePaste() {
-        CreatePasteRequest pasteRequest = new CreatePasteRequest("Content", "Title", "user", 120L, "email@example.com");
+        CreatePasteRequestDTO pasteRequest = new CreatePasteRequestDTO("Content", "Title", "user", 120L, "email@example.com");
         String uniqueUrl = "test-url";
         Paste paste = new Paste();
         paste.setUniqueUrl(uniqueUrl);
@@ -79,7 +82,6 @@ public class PasteControllerTest {
         when(pasteService.createPaste("Content", "Title", "user", "email@example.com", 120L)).thenReturn(paste);
 
         ResponseEntity<String> response = pasteController.createPaste(pasteRequest);
-
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertEquals(uniqueUrl, response.getBody());
@@ -96,7 +98,7 @@ public class PasteControllerTest {
         paste.setUsername("user");
         paste.setExpirationTime(LocalDateTime.now().plusDays(1));
         paste.setViewCount(0);
-        PasteResponse pasteResponse = new PasteResponse(
+        PasteResponseDTO pasteResponse = new PasteResponseDTO(
                 "Content",
                 "Title",
                 "user",
@@ -108,7 +110,7 @@ public class PasteControllerTest {
         when(pasteService.getPasteMetadata(uniqueUrl)).thenReturn(paste);
         when(pasteService.getPasteContent(uniqueUrl)).thenReturn(pasteContent);
 
-        ResponseEntity<PasteResponse> response = pasteController.getPaste(uniqueUrl);
+        ResponseEntity<PasteResponseDTO> response = pasteController.getPaste(uniqueUrl);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
