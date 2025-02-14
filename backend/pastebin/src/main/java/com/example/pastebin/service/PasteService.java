@@ -1,5 +1,6 @@
 package com.example.pastebin.service;
 
+import com.example.pastebin.DTO.PasteProjection;
 import com.example.pastebin.exeption.PasteNotFoundException;
 import com.example.pastebin.model.noSQL.PasteContent;
 import com.example.pastebin.model.SQL.Paste;
@@ -138,6 +139,12 @@ public class PasteService {
     private PasteContent findPasteContentById(String uniqueUrl) {
         return pasteContentRepository.findById(uniqueUrl)
                 .orElseThrow(() -> new PasteNotFoundException("Paste content not found for URL: " + uniqueUrl));
+    }
+
+    //
+    public PasteProjection getPasteProjection(String uniqueUrl) {
+        return pasteRepository.findProjectedByUniqueUrl(uniqueUrl)
+                .orElseThrow(() -> new PasteNotFoundException("Paste not found for URL: " + uniqueUrl));
     }
 }
 

@@ -1,5 +1,6 @@
 package com.example.pastebin.controllers;
 
+import com.example.pastebin.DTO.PasteProjection;
 import com.example.pastebin.exeption.PasteNotFoundException;
 import com.example.pastebin.DTO.CreateCommentRequestDTO;
 import com.example.pastebin.DTO.CreatePasteRequestDTO;
@@ -85,5 +86,12 @@ public class PasteController {
         } else {
             throw new PasteNotFoundException("Paste not found for URL: " + uniqueUrl);
         }
+    }
+
+    @GetMapping("/{uniqueUrl}/projection")
+    public ResponseEntity<PasteProjection> getPasteProjection(@PathVariable String uniqueUrl) {
+        log.info("Fetching paste projection for URL: {}", uniqueUrl);
+        PasteProjection projection = pasteService.getPasteProjection(uniqueUrl);
+        return ResponseEntity.ok(projection);
     }
 }
