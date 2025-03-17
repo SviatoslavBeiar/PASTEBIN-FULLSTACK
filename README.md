@@ -14,7 +14,7 @@ The Pastebin Application is a web-based platform where users can create and shar
 - **Email Service:** Spring Boot Email Service
 - **Scheduled Tasks:** Spring Boot Scheduler
 
-## Features
+## Features 
 
 - Create a new paste with title, content, username, email, and expiration time.
 - View a paste by its unique URL.
