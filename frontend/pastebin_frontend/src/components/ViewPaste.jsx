@@ -96,16 +96,16 @@ const ViewPaste = () => {
                             <h3>Add a Comment</h3>
                             <input
                                 type="text"
-                                placeholder="Your name (max 25 chars)"
+                                placeholder="Your name (max 15 chars)"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                maxLength="25" // Restricts the input length to 15 characters
+                                maxLength="15" // Restricts the input length to 15 characters
                             />
                             <textarea
-                                placeholder="Your comment (max 200 chars)"
+                                placeholder="Your comment (max 100 chars)"
                                 value={newComment}
                                 onChange={(e) => setNewComment(e.target.value)}
-                                maxLength="200" // Restricts the input length to 100 characters
+                                maxLength="100" // Restricts the input length to 100 characters
                             ></textarea>
                             <button onClick={handleCommentSubmit}>Submit</button>
                         </div>
