@@ -89,7 +89,7 @@ public class PasteService {
                 .orElseThrow(() -> new PasteNotFoundException(uniqueUrl));
 
         // increment AFTER successful fetch
-        pasteRepository.incrementViews(uniqueUrl);
+          pasteRepository.incrementViews(uniqueUrl);
 
         List<CommentResponseDTO> comments = new ArrayList<>();
         if (content.getComments() != null) {
