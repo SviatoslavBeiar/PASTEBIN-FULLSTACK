@@ -1,11 +1,11 @@
-package com.example.pastebin.DTO;
+package com.example.pastebin.web;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public interface PasteProjection {
     String getUniqueUrl();
     String getTitle();
     String getUsername();
-    LocalDateTime getExpirationTime();
+    Instant getCreatedAt();
     long getViewCount();
 }
