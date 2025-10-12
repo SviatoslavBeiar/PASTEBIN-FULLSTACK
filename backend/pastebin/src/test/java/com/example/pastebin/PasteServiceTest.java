@@ -6,8 +6,8 @@ import com.example.pastebin.dto.CreateCommentRequestDTO;
 import com.example.pastebin.dto.CreatePasteRequestDTO;
 import com.example.pastebin.dto.PasteResponseDTO;
 import com.example.pastebin.exeption.PasteNotFoundException;
-import com.example.pastebin.model.Paste;
-import com.example.pastebin.model.PasteContent;
+import com.example.pastebin.model.SQL.Paste;
+import com.example.pastebin.model.noSQL.PasteContent;
 import com.example.pastebin.repository.PasteContentRepository;
 import com.example.pastebin.repository.PasteRepository;
 import com.example.pastebin.service.EmailService;
@@ -34,15 +34,13 @@ class PasteServiceTest {
 
     @Mock PasteRepository pasteRepository;
     @Mock PasteContentRepository pasteContentRepository;
-    @Mock
-    EmailService emailService;
+    @Mock EmailService emailService;
     @Mock PasteProps props;
 
     @Captor ArgumentCaptor<Paste> pasteCaptor;
     @Captor ArgumentCaptor<PasteContent> contentCaptor;
 
-    @InjectMocks
-    PasteService service;
+    @InjectMocks PasteService service;
 
     // ---------- helpers ----------
 
@@ -51,6 +49,13 @@ class PasteServiceTest {
                 Instant.now(), Instant.now().plus(60, ChronoUnit.MINUTES));
         p.setNotified(notified);
         return p;
+    }
+
+    private Paste makeExpiredPaste(String url) {
+
+        return new Paste(url, "user", "title", "u@example.com",
+                Instant.now().minus(120, ChronoUnit.MINUTES),
+                Instant.now().minus(60, ChronoUnit.MINUTES));
     }
 
     private PasteContent makeContent(String url, int comments) {
@@ -69,7 +74,7 @@ class PasteServiceTest {
     // ---------- tests ----------
 
     @Test
-    @DisplayName("createPaste: успіх, з дефолтним TTL з конфігів")
+    @DisplayName("createPaste: success with default TTL from config")
     void createPaste_ok() {
         when(props.getExpirationDefaultMinutes()).thenReturn(60L);
         when(pasteRepository.existsByUniqueUrl(anyString())).thenReturn(false);
@@ -89,10 +94,10 @@ class PasteServiceTest {
     }
 
     @Test
-    @DisplayName("createPaste: колізія унікального коду → повторна генерація і успіх")
+    @DisplayName("createPaste: unique code collision -> regenerate and succeed")
     void createPaste_collisionThenSuccess() {
         when(props.getExpirationDefaultMinutes()).thenReturn(60L);
-        // перший раз — URL зайнятий, далі — вільний
+
         when(pasteRepository.existsByUniqueUrl(anyString())).thenReturn(true, false);
         when(pasteRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(pasteContentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -103,12 +108,12 @@ class PasteServiceTest {
         assertNotNull(dto.uniqueUrl());
         verify(pasteRepository, atLeast(2)).existsByUniqueUrl(anyString());
         verify(pasteRepository).save(any(Paste.class));
-        // довжина коду 8 згідно generateUniqueUrl(8)
+        // length is 8 as per generateUniqueUrl(8)
         assertEquals(8, dto.uniqueUrl().length());
     }
 
     @Test
-    @DisplayName("createPaste: помилка Mongo → компенсаційне deleteById у MySQL")
+    @DisplayName("createPaste: Mongo failure -> compensating deleteById in MySQL")
     void createPaste_mongoFails_compensates() {
         when(props.getExpirationDefaultMinutes()).thenReturn(60L);
         when(pasteRepository.existsByUniqueUrl(anyString())).thenReturn(false);
@@ -122,13 +127,13 @@ class PasteServiceTest {
     }
 
     @Test
-    @DisplayName("getPaste: успіх, інкремент переглядів після успішного фетчу")
+    @DisplayName("getPaste: success (active), increments views after successful fetch")
     void getPaste_ok_increments() {
         String url = "abcd1234";
         Paste p = makePaste(url, false);
         PasteContent c = makeContent(url, 2);
 
-        when(pasteRepository.findByUniqueUrl(url)).thenReturn(Optional.of(p));
+        when(pasteRepository.findActiveByUniqueUrl(eq(url), any(Instant.class))).thenReturn(Optional.of(p));
         when(pasteContentRepository.findByUniqueUrl(url)).thenReturn(Optional.of(c));
         when(pasteRepository.incrementViews(url)).thenReturn(1);
 
@@ -142,32 +147,35 @@ class PasteServiceTest {
     }
 
     @Test
-    @DisplayName("getPaste: немає Paste у MySQL → PasteNotFoundException")
-    void getPaste_missingSql_throws() {
-        when(pasteRepository.findByUniqueUrl("nope")).thenReturn(Optional.empty());
-        assertThrows(PasteNotFoundException.class, () -> service.getPaste("nope"));
+    @DisplayName("getPaste: expired -> PasteNotFoundException")
+    void getPaste_expired_throws() {
+        String url = "expired";
+
+        when(pasteRepository.findActiveByUniqueUrl(eq(url), any(Instant.class))).thenReturn(Optional.empty());
+        assertThrows(PasteNotFoundException.class, () -> service.getPaste(url));
         verifyNoInteractions(pasteContentRepository);
+        verify(pasteRepository, never()).incrementViews(anyString());
     }
 
     @Test
-    @DisplayName("getPaste: немає контенту в Mongo → PasteNotFoundException")
+    @DisplayName("getPaste: missing content in Mongo -> PasteNotFoundException")
     void getPaste_missingMongo_throws() {
         String url = "u";
-        when(pasteRepository.findByUniqueUrl(url)).thenReturn(Optional.of(makePaste(url, false)));
+        when(pasteRepository.findActiveByUniqueUrl(eq(url), any(Instant.class))).thenReturn(Optional.of(makePaste(url, false)));
         when(pasteContentRepository.findByUniqueUrl(url)).thenReturn(Optional.empty());
         assertThrows(PasteNotFoundException.class, () -> service.getPaste(url));
         verify(pasteRepository, never()).incrementViews(anyString());
     }
 
     @Test
-    @DisplayName("addComment: додає коментар і зберігає контент; ініціалізує список якщо null")
+    @DisplayName("addComment: adds comment and saves content; initializes list if null (active)")
     void addComment_ok_initializesList() {
         String url = "xyz";
         Paste p = makePaste(url, false);
         PasteContent c = makeContent(url, 0);
-        c.setComments(null); // емулюємо null у БД
+        c.setComments(null);
 
-        when(pasteRepository.findByUniqueUrl(url)).thenReturn(Optional.of(p));
+        when(pasteRepository.findActiveByUniqueUrl(eq(url), any(Instant.class))).thenReturn(Optional.of(p));
         when(pasteContentRepository.findByUniqueUrl(url)).thenReturn(Optional.of(c));
         when(pasteContentRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -185,10 +193,21 @@ class PasteServiceTest {
     }
 
     @Test
-    @DisplayName("listComments: пагінація працює (page=1,size=2 → 1 елемент)")
+    @DisplayName("addComment: expired -> PasteNotFoundException (soft delete)")
+    void addComment_expired_throws() {
+        String url = "exp";
+        when(pasteRepository.findActiveByUniqueUrl(eq(url), any(Instant.class))).thenReturn(Optional.empty());
+        CreateCommentRequestDTO req = new CreateCommentRequestDTO("bob", "hi");
+        assertThrows(PasteNotFoundException.class, () -> service.addComment(url, req));
+        verifyNoInteractions(pasteContentRepository);
+    }
+
+    @Test
+    @DisplayName("listComments: pagination works (active) (page=1,size=2 -> 1 item)")
     void listComments_pagination() {
         String url = "pg";
-        PasteContent c = makeContent(url, 3); // індекси 0,1,2
+        PasteContent c = makeContent(url, 3); // indexes 0,1,2
+        when(pasteRepository.findActiveByUniqueUrl(eq(url), any(Instant.class))).thenReturn(Optional.of(makePaste(url, false)));
         when(pasteContentRepository.findByUniqueUrl(url)).thenReturn(Optional.of(c));
 
         List<CommentResponseDTO> page = service.listComments(url, 1, 2);
@@ -198,11 +217,12 @@ class PasteServiceTest {
     }
 
     @Test
-    @DisplayName("listComments: порожній список коли немає коментарів")
+    @DisplayName("listComments: empty list when there are no comments (active)")
     void listComments_empty() {
         String url = "empty";
         PasteContent c = makeContent(url, 0);
-        c.setComments(null); // явний null
+        c.setComments(null);
+        when(pasteRepository.findActiveByUniqueUrl(eq(url), any(Instant.class))).thenReturn(Optional.of(makePaste(url, false)));
         when(pasteContentRepository.findByUniqueUrl(url)).thenReturn(Optional.of(c));
 
         List<CommentResponseDTO> page = service.listComments(url, 0, 10);
@@ -210,12 +230,21 @@ class PasteServiceTest {
     }
 
     @Test
-    @DisplayName("processPastes: надсилає листи і відмічає notified=true для кандидатів")
+    @DisplayName("listComments: expired -> PasteNotFoundException (soft delete)")
+    void listComments_expired_throws() {
+        String url = "gone";
+        when(pasteRepository.findActiveByUniqueUrl(eq(url), any(Instant.class))).thenReturn(Optional.empty());
+        assertThrows(PasteNotFoundException.class, () -> service.listComments(url, 0, 10));
+        verifyNoInteractions(pasteContentRepository);
+    }
+
+    @Test
+    @DisplayName("processPastes: sends emails and marks notified=true for candidates")
     void processPastes_sendsAndMarks() {
         when(props.getNotifyWindowMinutes()).thenReturn(30L);
 
         Paste p1 = makePaste("a1", false);
-        Paste p2 = makePaste("a2", true);  // вже notified → пропустити
+        Paste p2 = makePaste("a2", true);  // already notified -> skip
         when(pasteRepository.findPastesToNotify(any(), any())).thenReturn(List.of(p1, p2));
         when(pasteRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -229,10 +258,10 @@ class PasteServiceTest {
     }
 
     @Nested
-    @DisplayName("createPaste: поведінка TTL/часів")
+    @DisplayName("createPaste: TTL/time behavior")
     class TimeBehavior {
         @Test
-        @DisplayName("коли клієнт передає expirationMinutes=null → береться з конфігів")
+        @DisplayName("when client passes expirationMinutes=null -> taken from config")
         void usesDefaultTtlWhenNull() {
             when(props.getExpirationDefaultMinutes()).thenReturn(90L);
             when(pasteRepository.existsByUniqueUrl(anyString())).thenReturn(false);
@@ -244,8 +273,8 @@ class PasteServiceTest {
 
             assertNotNull(dto.expirationTime());
             assertNotNull(dto.createdAt());
-            // просто sanity-check, що expiry пізніше createdAt
             assertTrue(dto.expirationTime().isAfter(dto.createdAt()));
         }
     }
 }
+

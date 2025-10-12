@@ -1,7 +1,8 @@
 package com.example.pastebin.repository;
 
 
-import com.example.pastebin.model.Paste;
+import com.example.pastebin.dto.PasteProjection;
+import com.example.pastebin.model.SQL.Paste;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -16,7 +17,7 @@ public interface PasteRepository extends JpaRepository<Paste, Long> {
     boolean existsByUniqueUrl(String uniqueUrl);
 
     @Query("select p from Paste p where p.uniqueUrl = :uniqueUrl")
-    Optional<com.example.pastebin.web.PasteProjection> findProjectedByUniqueUrl(@Param("uniqueUrl") String uniqueUrl);
+    Optional<PasteProjection> findProjectedByUniqueUrl(@Param("uniqueUrl") String uniqueUrl);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Paste p set p.viewCount = p.viewCount + 1 where p.uniqueUrl = :uniqueUrl")
@@ -24,4 +25,9 @@ public interface PasteRepository extends JpaRepository<Paste, Long> {
 
     @Query("select p from Paste p where p.notified = false and p.email is not null and p.expirationTime between :from and :to")
     List<Paste> findPastesToNotify(@Param("from") Instant from, @Param("to") Instant to);
+
+
+    @Query("select p from Paste p where p.uniqueUrl = :uniqueUrl and p.expirationTime > :now")
+    Optional<Paste> findActiveByUniqueUrl(@Param("uniqueUrl") String uniqueUrl,
+                                          @Param("now") Instant now);
 }

@@ -1,6 +1,6 @@
 package com.example.pastebin.service;
 
-import com.example.pastebin.model.Paste;
+import com.example.pastebin.model.SQL.Paste;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mail.SimpleMailMessage;

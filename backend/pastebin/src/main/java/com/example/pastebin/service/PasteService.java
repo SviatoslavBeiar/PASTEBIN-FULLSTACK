@@ -6,17 +6,16 @@ import com.example.pastebin.dto.CreateCommentRequestDTO;
 import com.example.pastebin.dto.CreatePasteRequestDTO;
 import com.example.pastebin.dto.PasteResponseDTO;
 import com.example.pastebin.exeption.PasteNotFoundException;
-import com.example.pastebin.model.Paste;
-import com.example.pastebin.model.PasteContent;
+import com.example.pastebin.model.SQL.Paste;
+import com.example.pastebin.model.noSQL.PasteContent;
 import com.example.pastebin.repository.PasteContentRepository;
 import com.example.pastebin.repository.PasteRepository;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
-import org.springframework.scheduling.annotation.Scheduled;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -81,15 +80,19 @@ public class PasteService {
         );
     }
 
+    //SOFT DELETE behavior
+
     @Transactional
     public PasteResponseDTO getPaste(String uniqueUrl) {
-        Paste paste = pasteRepository.findByUniqueUrl(uniqueUrl)
+        Instant now = Instant.now();
+
+        Paste paste = pasteRepository.findActiveByUniqueUrl(uniqueUrl, now)
                 .orElseThrow(() -> new PasteNotFoundException(uniqueUrl));
+
         PasteContent content = pasteContentRepository.findByUniqueUrl(uniqueUrl)
                 .orElseThrow(() -> new PasteNotFoundException(uniqueUrl));
 
-        // increment AFTER successful fetch
-          pasteRepository.incrementViews(uniqueUrl);
+        pasteRepository.incrementViews(uniqueUrl);
 
         List<CommentResponseDTO> comments = new ArrayList<>();
         if (content.getComments() != null) {
@@ -111,9 +114,15 @@ public class PasteService {
         );
     }
 
+
     @Transactional
     public CommentResponseDTO addComment(String uniqueUrl, CreateCommentRequestDTO req) {
-        pasteRepository.findByUniqueUrl(uniqueUrl).orElseThrow(() -> new PasteNotFoundException(uniqueUrl));
+        Instant now = Instant.now();
+
+
+        pasteRepository.findActiveByUniqueUrl(uniqueUrl, now)
+                .orElseThrow(() -> new PasteNotFoundException(uniqueUrl));
+
         PasteContent content = pasteContentRepository.findByUniqueUrl(uniqueUrl)
                 .orElseThrow(() -> new PasteNotFoundException(uniqueUrl));
 
@@ -125,10 +134,18 @@ public class PasteService {
         return new CommentResponseDTO(comment.getUsername(), comment.getText(), comment.getCreatedAt());
     }
 
+
     @Transactional(readOnly = true)
     public List<CommentResponseDTO> listComments(String uniqueUrl, int page, int size) {
+        Instant now = Instant.now();
+
+
+        pasteRepository.findActiveByUniqueUrl(uniqueUrl, now)
+                .orElseThrow(() -> new PasteNotFoundException(uniqueUrl));
+
         PasteContent content = pasteContentRepository.findByUniqueUrl(uniqueUrl)
                 .orElseThrow(() -> new PasteNotFoundException(uniqueUrl));
+
         List<PasteContent.Comment> all = content.getComments() == null ? List.of() : content.getComments();
         int from = Math.max(0, page * size);
         int to = Math.min(all.size(), from + size);
@@ -177,5 +194,4 @@ public class PasteService {
         }
     }
 }
-
 

@@ -1,4 +1,4 @@
-package com.example.pastebin.web;
+package com.example.pastebin.dto;
 
 import java.time.Instant;
 

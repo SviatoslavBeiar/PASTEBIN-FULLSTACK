@@ -1,11 +1,16 @@
-package com.example.pastebin.model;
+package com.example.pastebin.model.SQL;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*; // <— додано
+import lombok.Setter;
+
 import java.time.Instant;
 
 @Entity
 @Table(name = "pastes", indexes = {
-        @Index(name = "ux_paste_unique_url", columnList = "uniqueUrl", unique = true)
+        @Index(name = "ux_paste_unique_url", columnList = "uniqueUrl", unique = true),
+        @Index(name = "ix_paste_username", columnList = "username"),
+        @Index(name = "ix_paste_created_at", columnList = "createdAt")
 })
 public class Paste {
 
@@ -13,30 +18,47 @@ public class Paste {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Setter
+    @NotBlank
+    @Size(max = 64)
     @Column(nullable = false, unique = true, length = 64)
     private String uniqueUrl;
 
+    @Setter
+    @NotBlank
+    @Size(max = 40)
     @Column(nullable = false, length = 40)
     private String username;
 
+    @Setter
+    @Size(max = 140)
     @Column(length = 140)
     private String title;
 
+    @Setter
+    @Email
+    @Size(max = 254)
     @Column(length = 254)
     private String email;
 
+    @Setter
     @Column(nullable = false)
     private Instant createdAt;
 
+    @Setter
+    @FutureOrPresent
     @Column(nullable = false)
     private Instant expirationTime;
 
+    @Setter
     @Column(nullable = false)
     private long viewCount = 0L;
 
+    @Setter
     @Column(nullable = false)
     private boolean notified = false;
 
+    @Setter
     @Version
     private long version;
 
@@ -53,22 +75,31 @@ public class Paste {
 
     public Long getId() { return id; }
     public String getUniqueUrl() { return uniqueUrl; }
-    public void setUniqueUrl(String uniqueUrl) { this.uniqueUrl = uniqueUrl; }
     public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
     public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
     public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
     public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getExpirationTime() { return expirationTime; }
-    public void setExpirationTime(Instant expirationTime) { this.expirationTime = expirationTime; }
     public long getViewCount() { return viewCount; }
-    public void setViewCount(long viewCount) { this.viewCount = viewCount; }
     public boolean isNotified() { return notified; }
-    public void setNotified(boolean notified) { this.notified = notified; }
     public long getVersion() { return version; }
-    public void setVersion(long version) { this.version = version; }
-}
 
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) createdAt = Instant.now();
+        if (expirationTime != null && !expirationTime.isAfter(createdAt)) {
+            throw new IllegalStateException("expirationTime must be after createdAt");
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        if (expirationTime != null && createdAt != null && !expirationTime.isAfter(createdAt)) {
+            throw new IllegalStateException("expirationTime must be after createdAt");
+        }
+    }
+
+
+    public void incrementViewCount() { this.viewCount++; }
+    public void markNotified() { this.notified = true; }
+}

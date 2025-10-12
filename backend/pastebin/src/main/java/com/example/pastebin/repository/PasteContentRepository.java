@@ -1,6 +1,6 @@
 package com.example.pastebin.repository;
 
-import com.example.pastebin.model.PasteContent;
+import com.example.pastebin.model.noSQL.PasteContent;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.Optional;
 
